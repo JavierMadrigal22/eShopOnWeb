@@ -1,22 +1,69 @@
-name: eShopOnWeb Build and Test
+name: Build and Deploy ASP.NET Core to Azure Web App
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: '8.0.x'
-        include-prerelease: true
+      # 1️⃣ Clonar el repositorio
+      - uses: actions/checkout@v4
 
-    - name: Build with dotnet
-      run: dotnet build ./eShopOnWeb.sln --configuration Release
-    
-    - name: Test with dotnet
-      run: dotnet test ./eShopOnWeb.sln --configuration Release
+      # 2️⃣ Configurar .NET 8
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # 3️⃣ Restaurar dependencias
+      - name: Restore dependencies
+        run: dotnet restore ./src/Web/Web.csproj
+
+      # 4️⃣ Build del proyecto
+      - name: Build project
+        run: dotnet build ./src/Web/Web.csproj -c Release --no-restore
+
+      # 5️⃣ Publicar la app en ./publish con web.config
+      - name: Publish project
+        run: dotnet publish ./src/Web/Web.csproj -c Release -o ./publish /p:PublishReadyToRun=true /p:CopyOutputSymbolsToPublishDirectory=true
+
+      # 6️⃣ Subir artefacto para el job de deploy
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-app
+          path: ./publish
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+      # 1️⃣ Descargar artefacto
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-app
+
+      # 2️⃣ Login a Azure usando Service Principal
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          auth-type: SERVICE_PRINCIPAL
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_B6410405167C4F84A386D6C1CC9BBAC4 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_26D21918E1FE4BE1B8E1C582845105F9 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C20F9D41DB004744AAB9CB879854E452 }}
+          client-secret: ${{ secrets.AZUREAPPSERVICE_CLIENTSECRET }}
+
+      # 3️⃣ Deploy a Azure Web App
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'LesterMAppServiceDAST'
+          slot-name: 'Production'
+          package: ./dotnet-app

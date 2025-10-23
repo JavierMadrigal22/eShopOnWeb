@@ -28,9 +28,9 @@ jobs:
       - name: Build project
         run: dotnet build ./src/Web/Web.csproj -c Release --no-restore
 
-      # 5️⃣ Publicar la app en ./publish con web.config
+      # 5️⃣ Publicar la app sin ReadyToRun (evita NETSDK1095)
       - name: Publish project
-        run: dotnet publish ./src/Web/Web.csproj -c Release -o ./publish /p:PublishReadyToRun=true /p:CopyOutputSymbolsToPublishDirectory=true
+        run: dotnet publish ./src/Web/Web.csproj -c Release -o ./publish /p:PublishReadyToRun=false /p:CopyOutputSymbolsToPublishDirectory=true
 
       # 6️⃣ Subir artefacto para el job de deploy
       - name: Upload artifact
